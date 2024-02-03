@@ -18,6 +18,19 @@ from hume.models.config import ProsodyConfig
 from pydub import AudioSegment
 import numpy as np
 
+# imports for filler facial expression analysis
+# import cv2
+# from deepface import DeepFace
+
+
+# Function to convert mp4 to mp3 gets automatically called at start of function I think
+def MP4ToMP3(mp4, mp3):
+    FILETOCONVERT = AudioFileClip(mp4)
+    FILETOCONVERT.write_audiofile(mp3)
+    FILETOCONVERT.close()
+
+
+
 
 # Function to get prompt
 def get_prompt():
@@ -57,20 +70,8 @@ def get_prompt():
     print(completion.choices[0].message)
     return completion.choices[0].message
 
-# Function to convert mp4 to mp3 gets automatically called at start of function I think
-def MP4ToMP3(mp4, mp3):
-    FILETOCONVERT = AudioFileClip(mp4)
-    FILETOCONVERT.write_audiofile(mp3)
-    FILETOCONVERT.close()
-
-VIDEO_FILE_PATH = "example1.mp4"
-AUDIO_FILE_PATH = "example1.mp3"
-MP4ToMP3(VIDEO_FILE_PATH, AUDIO_FILE_PATH)
-print("example.mp3 made successfully!")
-
-
 # Got the mp3 file, now we can use deepgram to transcribe it
-async def get_transcript():
+async def get_transcript(AUDIO_FILE_PATH):
     load_dotenv()
     DEEPGRAM_API_KEY = os.getenv('5d7be873315c16dea99482a6faa46bc3a0a8e96c')
     deepgram = Deepgram('5d7be873315c16dea99482a6faa46bc3a0a8e96c')
@@ -107,21 +108,18 @@ def determine_improv_pace(prompt):
     # User prompt: the actual improv prompt you want to analyze for pace
     user_prompt = "Generate a pace recommendation for this face-to-face improv scenario. Your answer can strictly only be 'slow', 'medium', or 'fast'."
 
-    # Example improv prompt to analyze
-    improv_prompt = "You find yourself stranded on a deserted island with only a talking parrot for company. Your goal is to convince the parrot to help you find food and resources for survival."
-
     # Create the chat completion
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt + " " + improv_prompt}
+            {"role": "user", "content": user_prompt + " " + str(prompt)}
         ]
     )
 
     # Print and return the suggested pace
-    suggested_pace = completion.choices[0].message
-    print(completion.choices[0].message)
+    suggested_pace = completion.choices[0].message.content
+    print(completion.choices[0].message.content)
     #make the following test case insensitive
     if suggested_pace not in ["slow", "medium", "fast", "Slow", "Medium", "Fast"]:
         raise ValueError("Invalid pace suggested by GPT-3")
@@ -146,22 +144,56 @@ def calculate_metrics(response, prompt):
         user_pace = "medium"
     elif abs(wpm - fast_pace) <= 15:
         user_pace = "fast"
+
+    # print(f'user pace: {user_pace} and ideal pace: {ideal_pace}')
     
     if user_pace == ideal_pace:
         pace_score = 1
 
     avg_pause_duration, total_pause_time, number_of_pauses, pause_variation = calculate_pause_metrics(words_data)
-    
-    print(f'Pace Score: {pace_score}')
-    print(f'Average Pause Duration: {avg_pause_duration}')
-    print(f'Total Pause Time: {total_pause_time}')
-    print(f'Number of Pauses: {number_of_pauses}')
-    print(f'Pause Variation: {pause_variation}')
 
-def analyze_tone():
+    return avg_pause_duration, total_pause_time, pause_variation
+    
+    # print(f'Pace Score: {pace_score}')
+    # print(f'Average Pause Duration: {avg_pause_duration}')
+    # print(f'Total Pause Time: {total_pause_time}')
+    # print(f'Number of Pauses: {number_of_pauses}')
+    # print(f'Pause Variation: {pause_variation}')
+
+# Function to determine the tone of the speaker based on chat with GPT
+def determine_tone(prompt):
+    # Initialize the OpenAI client with your API key
+    client = OpenAI(api_key="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")
+
+    # Define a system prompt that instructs the AI on the task
+    system_prompt = "You are an AI designed to analyze improv prompts and suggest the ideal tone/emption level in delivery for the performance. Based on the content, context, and emotional tone of the prompt, determine which of the following tone/emotions fit best: angry, disgust, fear, happy, sad, surprise, neutral. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement."
+
+    # User prompt: the actual improv prompt you want to analyze for pace
+    user_prompt = "Generate an emotion/tone for this face-to-face improv scenario. Your answer can strictly only be 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral'."
+
+    # Create the chat completion
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt + " " + str(prompt)}
+        ]
+    )
+
+    # Print and return the suggested pace
+    volume = completion.choices[0].message.content
+    print(completion.choices[0].message.content)
+    #make the following test case insensitive
+    if volume not in ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral", "Angry", "Disgust", "Fear", "Happy", "Sad", "Surprise", "Neutral"]:
+        raise ValueError("Invalid volume suggested by GPT-3")
+    
+    return volume.lower()
+
+def analyze_tone(prompt, audio_file):
+    tone = determine_tone(prompt)
     client = HumeBatchClient("kPRwB7YpdFaNqgrprMzHmAgiK0fAPAGcucdA3ZU53NvKyEUk")
     config = [ProsodyConfig()]
-    files = ["example1.mp3"]
+    files = [str(audio_file)]
 
     job = client.submit_job([], config, files=files)
 
@@ -172,7 +204,7 @@ def analyze_tone():
     predictions = job.get_predictions()
     prediction_outcomes = predictions[0]['results']['predictions'][0]['models']['prosody']['grouped_predictions'][0]['predictions']
 
-
+    emotion_dict = {}
     for i in range(len(prediction_outcomes)):
         emotions = prediction_outcomes[i]['emotions']
         
@@ -180,10 +212,66 @@ def analyze_tone():
         for i in range(len(emotions)):
             special_dict[emotions[i]['name']] = emotions[i]['score']
         
+        emotion_name = max(special_dict, key=special_dict.get)
+        if emotion_name in emotion_dict:
+            emotion_dict[emotion_name] += 1
+        else:
+            emotion_dict[emotion_name] = 1
+
         print(max(special_dict, key=special_dict.get))
+    
+    # return emotion with highest count
+    if len(emotion_dict) == 0:
+        return "neutral"
+    
+    if max(emotion_dict, key=emotion_dict.get) == tone:
+        return 20
+    else:
+        return 0
+
+# Function to determine the ideal volume levels for an improv delivery based on chat with GPT-3
+def determine_volume_fluctuation(prompt):
+    # Initialize the OpenAI client with your API key
+    client = OpenAI(api_key="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")
+
+    # Define a system prompt that instructs the AI on the task
+    system_prompt = "You are an AI designed to analyze improv prompts and suggest the ideal volume level in delivery for the performance. Based on the content, context, and emotional tone of the prompt, determine whether the volume level should be low, medium, or high. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement."
+
+    # User prompt: the actual improv prompt you want to analyze for pace
+    user_prompt = "Generate a volume level for this face-to-face improv scenario. Your answer can strictly only be 'low', 'medium', or 'high'."
+
+    # Example improv prompt to analyze
+    improv_prompt = "You find yourself stranded on a deserted island with only a talking parrot for company. Your goal is to convince the parrot to help you find food and resources for survival."
+
+    # Create the chat completion
+    completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt + " " + str(prompt)}
+        ]
+    )
+
+    # Print and return the suggested pace
+    volume = completion.choices[0].message.content
+    print(completion.choices[0].message.content)
+    #make the following test case insensitive
+    if volume not in ["low", "medium", "high", "Low", "Medium", "High"]:
+        raise ValueError("Invalid volume suggested by GPT-3")
+    
+    if volume == "low" or volume == "Low":
+        return -20
+    elif volume == "medium" or volume == "Medium":
+        return -10
+    elif volume == "high" or volume == "High":
+        return 0
+    
+    return volume
 
 # Function to calculate volume fluctuation
-def calculate_volume_fluctuation():
+def calculate_volume_fluctuation(prompt, AUDIO_FILE_PATH):
+    ideal_volume = determine_volume_fluctuation(prompt)
+    ideal_volume = (float)(ideal_volume)
     audio = AudioSegment.from_file(AUDIO_FILE_PATH)
 
     # Calculate volume for each second
@@ -193,8 +281,12 @@ def calculate_volume_fluctuation():
         loudness = segment.dBFS
         volumes.append(loudness)
 
-    print(len(volumes))
-    print(volumes)
+    # Calculate average volume difference
+    volume_difference = abs(ideal_volume - np.mean(volumes))
+    print(f'Volume Difference: {volume_difference}')
+    volume_fluctuation = np.std(volumes) * 2
+    print(f'Volume Fluctuation: {volume_fluctuation}')
+    return volume_difference, volume_fluctuation
 
 # Function to calculate filler words
 def filler_word_calculator(transcript):
@@ -219,8 +311,6 @@ def get_script_relevance(transcript, prompt):
     # prompt = "You are a financial analyst who has identified an emerging market with significant investment potential. Your goal is to convince your firm's investment committee to allocate resources to this market, presenting your analysis and risk management strategy."
 
     # 35
-    transcript = "Hey everyone, so, um, I found this super cool market thingy, kind of a hidden gem, you know? It's like, in this place where not many people invest, but I think we should, like, totally go for it. I did some, uh, number stuff and it looks pretty good, I guess? There's some risks, sure, but we can, like, do something about them, maybe spread out the investments or something. I didn't dive super deep into the details, but, hey, fortune favors the bold, right? So, what do you say we just, you know, give it a shot and see what happens? Could be fun, right?"
-    prompt = "You are a financial analyst who has identified an emerging market with significant investment potential. Your goal is to convince your firm's investment committee to allocate resources to this market, presenting your analysis and risk management strategy."
 
     system_prompt = " \
         You are an administrator of a face-to-face improv competition, where you will be evaluating the relevance of the \
@@ -252,32 +342,97 @@ def get_script_relevance(transcript, prompt):
     )
 
     print(f'Content Relevance: {completion.choices[0].message}')
+    print(type(completion.choices[0].message))
+    print(f'Content Relevance: {completion.choices[0].message.content}')
+    return (int)(completion.choices[0].message.content)
+
+
+# def analyze_facial_expression():
+#     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+#     vidcap = cv2.VideoCapture("example2.mp4")
+#     fps_in = vidcap.get(cv2.CAP_PROP_FPS)
+#     fps_out = 3
+
+#     vidcap.set(cv2.CAP_PROP_FPS, 3)
+#     success, image = vidcap.read()
+#     total_count = 0
+#     gaze_count = 0
+
+#     index_in = -1
+#     index_out = -1
+#     analyze_dict = {}
+
+#     while success:
+#         success = vidcap.grab()
+#         if not success: break
+#         index_in += 1
+
+#         out_due = int(index_in / fps_in * fps_out)
+#         if out_due > index_out:
+#             success, image = vidcap.retrieve()
+#             if not success: break
+#             index_out += 1
+
+#             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#             face = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+#             analyze = DeepFace.analyze(image, actions=['emotion'])[0]['emotion']
+
+#             max_expression = max(analyze, key=analyze.get)
+
+#             keys = list(analyze.keys())
+#             if (index_in == 0):
+#                 analyze_dict = analyze
+#                 analyze_dict = dict.fromkeys(analyze_dict, 0)
+#             else:
+#                 analyze_dict[max_expression] += 1
+
+#             total_count += 1
+#         # print(index_in)
+
+#     print(analyze_dict)
+#     print(max(analyze_dict, key=analyze_dict.get))
+
+
 
 def main():
     # Get the prompt
+    score = 0
     prompt = get_prompt()
+
+    VIDEO_FILE_PATH = "example3.mp4"
+    AUDIO_FILE_PATH = "example3.mp3"
+    MP4ToMP3(VIDEO_FILE_PATH, AUDIO_FILE_PATH)
+    print("example.mp3 made successfully!")
+    
 
     # Convert the video to mp3 shuold have been done already
 
     # Get the transcript
-    response, transcript = asyncio.run(get_transcript())
-    print(f'response: {response}')
-    print(f'transcript: {transcript}')
+    response, transcript = asyncio.run(get_transcript(AUDIO_FILE_PATH))
+    # print(f'response: {response}')
+    # print(f'transcript: {transcript}')
 
     # Calculate pace and pause metrics
-    # calculate_metrics(response, prompt)
+    avg_pause_duration, total_pause_time, pause_variation = calculate_metrics(response, prompt)
+    score -= (avg_pause_duration*20 + total_pause_time/20 + pause_variation*10)
 
     # Analyze the tone of the speaker
-    analyze_tone()
+    tone_score = analyze_tone(prompt, AUDIO_FILE_PATH)
+    score += tone_score
 
     # Calculate volume fluctuation
-    calculate_volume_fluctuation()
+    volume_difference, volume_fluctuation = calculate_volume_fluctuation(prompt, AUDIO_FILE_PATH)
+    score -= (volume_difference/4 + volume_fluctuation)
 
     # Calculate filler words
-    filler_word_calculator(transcript)
+    filler_count, filler_percentage = filler_word_calculator(transcript)
+    score -= (filler_count + filler_percentage)
 
     # Get the relevance of the script based on chat with GPT-3
-    get_script_relevance(transcript, prompt)
+    content_relevance = get_script_relevance(transcript, prompt)
+    score += content_relevance
+
+    print(f'Final score: {score}!!')
 
 
 main()
