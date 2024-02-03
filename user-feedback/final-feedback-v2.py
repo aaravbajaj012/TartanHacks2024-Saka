@@ -269,7 +269,7 @@ def analyze_tone(prompt, audio_file):
     else:
         get_index = tone_list.index(keys_face[0])
 
-    return max_emotion, (7 - get_index)*2
+    return max_emotion, (10 - get_index)*10
 
 # Function to determine the ideal volume levels for an improv delivery based on chat with GPT-3
 def determine_volume_fluctuation(prompt):
@@ -428,7 +428,8 @@ def analyze_facial_expression(prompt, MP4_FILE_PATH):
 
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             face = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-            analyze = DeepFace.analyze(image, actions=['emotion'])[0]['emotion']
+            cv2.imwrite(f"image{index_in}.jpg", image)
+            analyze = DeepFace.analyze(image, enforce_detection=False, actions=['emotion'])[0]['emotion']
 
             max_expression = max(analyze, key=analyze.get)
 
@@ -445,7 +446,7 @@ def analyze_facial_expression(prompt, MP4_FILE_PATH):
     print(max_emotion)
     get_index = tone_list.index(max_emotion)
 
-    return max_emotion, (7 - get_index)*2
+    return max_emotion, (10 - get_index)*10
 
 
 def get_eye_contact_percent(VIDEO_FILE):
@@ -547,9 +548,10 @@ def main(file_name):
     # Organize the metrics into a dictionary
     feedback = {
         "score": score,
-        "eye_contact_percentage": gaze_contact_percent,
-        "eye_percent_away_from_threshoold": eye_contact_score,
+        "eye_contact_percentage": gaze_contact_percent*100,
+        "eye_percent_away_from_threshold": eye_contact_score*100,
         "max_facial_emotion": max_facial_expression,
+        "facial_emotion_score": emotions_score,
         "gpt-tone": determine_tone(prompt)[0],
         "avg_pause_duration": avg_pause_duration,
         "total_pause_time": total_pause_time,
@@ -565,4 +567,4 @@ def main(file_name):
 
     print(f'Feedback: {feedback}')
 
-main("example2")
+main("salman2")
