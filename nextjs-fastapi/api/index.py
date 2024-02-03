@@ -213,7 +213,7 @@ async def upload_replay(file: UploadFile = File(...), decoded_token: str = Depen
         match_id = sender_data[0]
         user_id = sender_data[1].split('.')[0]
 
-        analyze_replay(match_id, user_id, file_location)
+        await analyze_replay(match_id, user_id, file_location)
 
         return {"message": "Replay file successfully uploaded"}
     except:

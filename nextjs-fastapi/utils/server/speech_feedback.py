@@ -269,7 +269,7 @@ def analyze_tone(prompt, audio_file):
     else:
         get_index = tone_list.index(keys_face[0])
 
-    return max_emotion, (7 - get_index)*2
+    return max_emotion, (10 - get_index)*10
 
 # Function to determine the ideal volume levels for an improv delivery based on chat with GPT-3
 def determine_volume_fluctuation(prompt):
@@ -428,7 +428,7 @@ def analyze_facial_expression(prompt, MP4_FILE_PATH):
 
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             face = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-            analyze = DeepFace.analyze(image, actions=['emotion'])[0]['emotion']
+            analyze = DeepFace.analyze(image, enforce_detection=False, actions=['emotion'])[0]['emotion']
 
             max_expression = max(analyze, key=analyze.get)
 
@@ -445,7 +445,7 @@ def analyze_facial_expression(prompt, MP4_FILE_PATH):
     print(max_emotion)
     get_index = tone_list.index(max_emotion)
 
-    return max_emotion, (7 - get_index)*2
+    return max_emotion, (10 - get_index)*10
 
 
 def get_eye_contact_percent(VIDEO_FILE):
@@ -497,7 +497,7 @@ def get_eye_contact_percent(VIDEO_FILE):
 
 def get_feedback_from_video(file_name):
     # Get the prompt
-    score = 100
+    score = 0
     prompt = get_prompt()
 
     VIDEO_FILE_PATH = file_name + ".mp4"
@@ -505,9 +505,7 @@ def get_feedback_from_video(file_name):
     MP4ToMP3(VIDEO_FILE_PATH, AUDIO_FILE_PATH)
     print("example.mp3 made successfully!")
     
-
     # Convert the video to mp3 shuold have been done already
-
 
     # Get the transcript
     response, transcript = asyncio.run(get_transcript(AUDIO_FILE_PATH))
@@ -516,7 +514,7 @@ def get_feedback_from_video(file_name):
 
     # Analyze the eye contact from the video
     gaze_contact_percent, eye_contact_score = get_eye_contact_percent(VIDEO_FILE_PATH)
-    score -= eye_contact_score
+    score += eye_contact_score
 
     # Analyze facial emotions from the video
     max_facial_expression, emotions_score = analyze_facial_expression(prompt, VIDEO_FILE_PATH)
@@ -524,7 +522,7 @@ def get_feedback_from_video(file_name):
 
     # Calculate pace and pause metrics
     avg_pause_duration, total_pause_time, pause_variation = calculate_metrics(response, prompt)
-    score -= (avg_pause_duration*20 + total_pause_time/20 + pause_variation*10)
+    score -= (avg_pause_duration*20 + total_pause_time*2 + pause_variation/2)
 
     # Analyze the tone of the speaker
     audio_tone, tone_score = analyze_tone(prompt, AUDIO_FILE_PATH)
@@ -532,24 +530,27 @@ def get_feedback_from_video(file_name):
 
     # Calculate volume fluctuation
     volume_difference, volume_fluctuation = calculate_volume_fluctuation(prompt, AUDIO_FILE_PATH)
-    score -= (volume_difference/4 + volume_fluctuation)
+    score -= (volume_difference/3 + volume_fluctuation/4)
 
     # Calculate filler words
     filler_count, filler_percentage = filler_word_calculator(transcript)
-    score -= (filler_count + filler_percentage)
+    score -= (filler_count*10)
 
     # Get the relevance of the script based on chat with GPT-3
     content_relevance = get_script_relevance(transcript, prompt)
     score += content_relevance
 
-    print(f'Final score: {score}!!')
+    final_score = score / 4
+
+    print(f'Final score: {final_score}!!')
 
     # Organize the metrics into a dictionary
     feedback = {
-        "score": score,
-        "eye_contact_percentage": gaze_contact_percent,
-        "eye_percent_away_from_threshoold": eye_contact_score,
+        "score": final_score,
+        "eye_contact_percentage": gaze_contact_percent*100,
+        "eye_percent_away_from_threshold": eye_contact_score,
         "max_facial_emotion": max_facial_expression,
+        "facial_emotion_score": emotions_score,
         "gpt-tone": determine_tone(prompt)[0],
         "avg_pause_duration": avg_pause_duration,
         "total_pause_time": total_pause_time,
@@ -564,5 +565,4 @@ def get_feedback_from_video(file_name):
     }
 
     print(f'Feedback: {feedback}')
-
     return feedback

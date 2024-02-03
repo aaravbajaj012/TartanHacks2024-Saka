@@ -15,8 +15,8 @@ import VideoPreview from "@/components/videoPreview";
 import Timer from "@/components/timer";
 import { BadgeDelta, ProgressBar } from "@tremor/react";
 
-const PREP_TIMER_DURATION = 2;
-const RECORDING_TIMER_DURATION = 2;
+const PREP_TIMER_DURATION = 5;
+const RECORDING_TIMER_DURATION = 5;
 
 export default function Home() {
     const [loading, setLoading] = useState(true);
@@ -216,7 +216,15 @@ export default function Home() {
       }, [router]);
 
     useEffect(() => {
-        // setIsInitialScreenVisible(true);
+        setIsInitialScreenVisible(true);
+        return () => {
+            if (ws) {
+                ws.disconnect();
+            }
+        }
+    }, []);
+
+    const populateFakeData = () => {
         setPlayerInfo({
             "name": "Player 1",
             "elo": 1210,
@@ -228,31 +236,12 @@ export default function Home() {
             "elo": 1190,
             "profile_pic": "/pfp-default.png"
         });
-
-        // feedback = {
-        //     "score": final_score,
-        //     "eye_contact_percentage": gaze_contact_percent*100,
-        //     "eye_percent_away_from_threshold": eye_contact_score,
-        //     "max_facial_emotion": max_facial_expression,
-        //     "facial_emotion_score": emotions_score,
-        //     "gpt-tone": determine_tone(prompt)[0],
-        //     "avg_pause_duration": avg_pause_duration,
-        //     "total_pause_time": total_pause_time,
-        //     "pause_variation": pause_variation,
-        //     "audio_tone": audio_tone,
-        //     "tone_score": tone_score,
-        //     "volume_difference": volume_difference,
-        //     "volume_fluctuation": volume_fluctuation,
-        //     "filler_count": filler_count,
-        //     "filler_percentage": filler_percentage,
-        //     "content_relevance": content_relevance
-        // }
         parseMessage("match_completed:" + JSON.stringify({
             "player_feedback": {
                 "score": 15
             },
             "opponent_feedback": {
-
+                "score": 15
             },
             "player_rating": 1220,
             "opponent_rating": 1180,
@@ -260,15 +249,7 @@ export default function Home() {
             "opponent_rating_delta": -10,
             "winner": false
         }));
-        // setIsMatchScreenVisible(true);
-        // parseMessage("prompt:You are a superhero who has lost their powers. You are trying to convince the council to give them back to you.");
-
-        return () => {
-            if (ws) {
-                ws.disconnect();
-            }
-        }
-    }, []);
+    }
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, () => {
@@ -452,14 +433,14 @@ export default function Home() {
             >
                 <LoadingIcon width={"w-20"}/>
             </div>
-
+            { isMatchResultsVisible &&
             <div className={"w-full grow flex flex-col justify-center items-center " + (isMatchResultsVisible? "visible" : "hidden")}
                 style={isMatchResultsVisible ? slideInDownStyle : slideOutDownStyle}
             >
                 <span className="text-5xl font-bold text-slate-800">Match Results</span>
 
-                <div className="mt-24 flex flex-row justify-center items-center w-full">
-                    <div className="w-1/4 flex flex-col justify-center items-center">
+                <div className="mt-12 flex flex-row justify-center items-center w-full">
+                    <div className="w-1/4 flex flex-col justify-center items-center mr-40">
                         <div className="bg-white shadow-card px-10 py-8 rounded-lg flex flex-col w-full">
                             <div className="w-full flex flex-row justify-center items-center">
                                 <img src={(playerInfo && playerInfo['profile_pic'] ? playerInfo['profile_pic'] : null) ?? "/pfp-default.png"} className="w-20 h-20 rounded-full mr-6"/> 
@@ -471,38 +452,141 @@ export default function Home() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="w-full mt-6 flex flex-col justify-center items-center">
+                            <div className="w-full mt-4 flex flex-col justify-center items-center">
                                 <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
-                                    <span className="text-xl font-bold text-slate-600">Overall Score</span>
+                                    <span className="text-lg font-semibold text-slate-600">Overall Score</span>
                                     <div className="grow" />
-                                    <span className="text-xl font-medium text-slate-600">15</span>
+                                    <span className="text-lg font-medium text-slate-600">73</span>
                                 </div>
-                                <ProgressBar value={45} color="blue" className="mt-3" />
+                                <ProgressBar value={73} color="blue" className="mt-3" />
                             </div>
                         </div>
-                        <div className="bg-white shadow-card px-10 py-8 rounded-lg flex flex-col mt-3 w-full">
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
                             <div className="w-full flex flex-col justify-center items-center">
                                 <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
-                                    <span className="text-xl font-bold text-slate-600">Overall Score</span>
+                                    <span className="text-lg font-semibold text-slate-600">Eye Contact</span>
                                     <div className="grow" />
-                                    <span className="text-xl font-medium text-slate-600">15</span>
+                                    <span className="text-lg font-medium text-slate-600">87</span>
                                 </div>
-                                <ProgressBar value={45} color="blue" className="mt-3" />
+                                <ProgressBar value={87} color="teal" className="mt-3" />
                             </div>
                         </div>
-                        <div className="bg-white shadow-card px-10 py-8 rounded-lg flex flex-col mt-3 w-full">
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
                             <div className="w-full flex flex-col justify-center items-center">
                                 <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
-                                    <span className="text-xl font-bold text-slate-600">Overall Score</span>
+                                    <span className="text-lg font-semibold text-slate-600">Facial Emotions</span>
                                     <div className="grow" />
-                                    <span className="text-xl font-medium text-slate-600">15</span>
+                                    <span className="text-lg font-medium text-slate-600">80</span>
                                 </div>
-                                <ProgressBar value={45} color="blue" className="mt-3" />
+                                <ProgressBar value={80} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Tone</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">91</span>
+                                </div>
+                                <ProgressBar value={91} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Volume</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">38</span>
+                                </div>
+                                <ProgressBar value={38} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-gl font-semibold text-slate-600">Filler Words</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">67</span>
+                                </div>
+                                <ProgressBar value={67} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="w-1/4 flex flex-col justify-center items-center">
+                        <div className="bg-white shadow-card px-10 py-8 rounded-lg flex flex-col w-full">
+                            <div className="w-full flex flex-row justify-center items-center">
+                                <img src={(opponentInfo && opponentInfo['profile_pic'] ? opponentInfo['profile_pic'] : null) ?? "/pfp-default.png"} className="w-20 h-20 rounded-full mr-6"/> 
+                                <div className="flex flex-col justify-center items-left">
+                                    <span className="text-2xl font-bold text-slate-800">{opponentInfo ? opponentInfo['name'] : "Player"}</span>
+                                    <div className="flex flex-row justify-center items-center">
+                                        <span className="mt-2 mr-4 text-lg font-medium text-slate-600">{results ? results['opponent_rating'] : ""}</span>
+                                        <BadgeDelta deltaType={results['opponent_rating_delta'] > 0 ? "increase" : "decrease"}>{Math.abs(parseInt(results['opponent_rating_delta'], 10))}</BadgeDelta>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="w-full mt-4 flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Overall Score</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">83</span>
+                                </div>
+                                <ProgressBar value={83} color="blue" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Eye Contact</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">71</span>
+                                </div>
+                                <ProgressBar value={71} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Facial Emotions</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">56</span>
+                                </div>
+                                <ProgressBar value={56} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Tone</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">95</span>
+                                </div>
+                                <ProgressBar value={95} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-lg font-semibold text-slate-600">Volume</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">50</span>
+                                </div>
+                                <ProgressBar value={50} color="teal" className="mt-3" />
+                            </div>
+                        </div>
+                        <div className="bg-white shadow-card px-8 py-6 rounded-lg flex flex-col mt-2 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-gl font-semibold text-slate-600">Filler Words</span>
+                                    <div className="grow" />
+                                    <span className="text-lg font-medium text-slate-600">79</span>
+                                </div>
+                                <ProgressBar value={79} color="teal" className="mt-3" />
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+            }
         </div>
     )
 }

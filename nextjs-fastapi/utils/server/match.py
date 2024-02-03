@@ -75,9 +75,15 @@ async def analyze_replay(match_id: str, user_id: str, replay_file_path: str):
 
     stripped_file_path = replay_file_path.split('.')[0]
 
+    print(stripped_file_path)
+
     assert replay_file_path.endswith('.mp4')
 
+    print('Starting Processing')
+
     feedback = get_feedback_from_video(stripped_file_path)
+
+    print('Completed Processing')
 
     # update the database with the analysis
     await add_match_feedback(match_id, user_id, feedback)
