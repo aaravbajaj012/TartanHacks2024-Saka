@@ -9,4 +9,5 @@ dlib == 19.16.0
 openai == 0.28.1
 hume == 0.4.1
 pip install deepface
-pip install deepface[torch]
+pip install roboflow
+
