@@ -15,8 +15,8 @@ import VideoPreview from "@/components/videoPreview";
 import Timer from "@/components/timer";
 import { BadgeDelta, ProgressBar } from "@tremor/react";
 
-const PREP_TIMER_DURATION = 5;
-const RECORDING_TIMER_DURATION = 5;
+const PREP_TIMER_DURATION = 30;
+const RECORDING_TIMER_DURATION = 45;
 
 export default function Home() {
     const [loading, setLoading] = useState(true);
@@ -406,6 +406,9 @@ export default function Home() {
                                     setIsRecording(false);
                                     setIsMatchScreenVisible(false);
                                     setIsPostMatchLoadingVisible(true);
+                                    setTimeout(() => {
+                                        populateFakeData();
+                                    }, 3000);
                                 }, 1000);
                             }} totalTime={RECORDING_TIMER_DURATION} />
                             :
