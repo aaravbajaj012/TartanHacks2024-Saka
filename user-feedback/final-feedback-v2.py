@@ -447,6 +447,7 @@ def main(file_name):
 
     # Organize the metrics into a dictionary
     feedback = {
+        "score": score,
         "avg_pause_duration": avg_pause_duration,
         "total_pause_time": total_pause_time,
         "pause_variation": pause_variation,
