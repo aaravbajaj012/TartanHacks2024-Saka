@@ -19,8 +19,11 @@ from pydub import AudioSegment
 import numpy as np
 
 # imports for filler facial expression analysis
-# import cv2
-# from deepface import DeepFace
+import cv2
+from deepface import DeepFace
+
+# imports for eye contact analysis
+from gaze_tracking import GazeTracking
 
 
 # Function to convert mp4 to mp3 gets automatically called at start of function I think
@@ -28,9 +31,6 @@ def MP4ToMP3(mp4, mp3):
     FILETOCONVERT = AudioFileClip(mp4)
     FILETOCONVERT.write_audiofile(mp3)
     FILETOCONVERT.close()
-
-
-
 
 # Function to get prompt
 def get_prompt():
@@ -103,10 +103,13 @@ def determine_improv_pace(prompt):
     client = OpenAI(api_key="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")
 
     # Define a system prompt that instructs the AI on the task
-    system_prompt = "You are an AI designed to analyze improv prompts and suggest the ideal pace of delivery for the performance. Based on the content, context, and emotional tone of the prompt, determine whether the pace should be slow, medium, or fast. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement."
+    system_prompt = "You are an AI designed to analyze improv prompts and suggest the ideal pace of delivery for the performance. Based on the content, context, and emotional tone of the prompt, determine whether the pace should be slow, medium, or fast. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement. \
+        Only give one word inside of your prompt. Here is an example. \
+        Example 1 Prompt: You are a time traveler from the future where music is used as currency. Your goal is to explain to the audience how this new economic system works. Example 1 Response: medium \
+        Example 2 Prompt: You are a mourning son. Your goal is to give a funeral speech for your dead mother. Example 2 Response: slow"
 
     # User prompt: the actual improv prompt you want to analyze for pace
-    user_prompt = "Generate a pace recommendation for this face-to-face improv scenario. Your answer can strictly only be 'slow', 'medium', or 'fast'."
+    user_prompt = "Generate a pace recommendation for this face-to-face improv scenario. Your answer can strictly only be 'slow', 'medium', or 'fast'. Give only one word."
 
     # Create the chat completion
     completion = client.chat.completions.create(
@@ -120,9 +123,14 @@ def determine_improv_pace(prompt):
     # Print and return the suggested pace
     suggested_pace = completion.choices[0].message.content
     print(completion.choices[0].message.content)
+    #strip whitespace and any sort of punctuation from volume
+    suggested_pace = suggested_pace.strip()
+    suggested_pace = suggested_pace.strip(".")
+    print(f'suggested_pace: {suggested_pace}')
     #make the following test case insensitive
-    if suggested_pace not in ["slow", "medium", "fast", "Slow", "Medium", "Fast"]:
-        raise ValueError("Invalid pace suggested by GPT-3")
+    if "slow" not in suggested_pace and "medium" not in suggested_pace and "fast" not in suggested_pace and "Slow" not in suggested_pace and "Medium" not in suggested_pace and "Fast" not in suggested_pace:
+        return "medium"
+
     return suggested_pace
 
 # Perform calculations for pace metrics
@@ -166,10 +174,18 @@ def determine_tone(prompt):
     client = OpenAI(api_key="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")
 
     # Define a system prompt that instructs the AI on the task
-    system_prompt = "You are an AI designed to analyze improv prompts and suggest the ideal tone/emption level in delivery for the performance. Based on the content, context, and emotional tone of the prompt, determine which of the following tone/emotions fit best: angry, disgust, fear, happy, sad, surprise, neutral. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement."
+    system_prompt = "You are an AI designed to analyze improv prompts and rank from a list of sevens, including angry, disgust, fear, happy, sad, surprise, neutral. \
+        Based on the content and emotional tone of the prompt, determine which of the following tone/emotions fit best by ranking them using a list. \
+        Let the first element of the list be the most relevant, the second element be the second most, and so on. The last element should be \
+        the least relevant to the prompt. Consider factors such as the complexity of the language, the emotional impact of the content, and the desired audience engagement. \
+        Here is an example: \
+        Example 1 Prompt: You are a time traveler from the future where music is used as currency. Your goal is to explain to the audience how this new economic system works. \
+        Example 1 Ranking: surprise, happy, neutral, curiosity, amusement, confusion, doubt \
+        \
+        "
 
     # User prompt: the actual improv prompt you want to analyze for pace
-    user_prompt = "Generate an emotion/tone for this face-to-face improv scenario. Your answer can strictly only be 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral'."
+    user_prompt = "Generate a ranked list of values with commas for this face-to-face improv scenario. Your answer can strictly only be angry, disgust, fear, happy, sad, surprise, neutral. Don't add quotes around the list."
 
     # Create the chat completion
     completion = client.chat.completions.create(
@@ -183,20 +199,41 @@ def determine_tone(prompt):
     # Print and return the suggested pace
     tone = completion.choices[0].message.content
     print(completion.choices[0].message.content)
+
+    gpt_tone = tone.replace(".", " ")
+    gpt_tone = tone.replace(",", " ")
+    gpt_tone = gpt_tone.split()
+    #strip whitespace from gpt_tone
+    gpt_tone = [word.strip() for word in gpt_tone]
+    # put words in gpt_tone into a list of lowercase words in the same order as they are in the string
+    gpt_tone = [word.lower() for word in gpt_tone]
+
+    if 'angry' not in gpt_tone and 'disgust' not in gpt_tone and 'fear' not in gpt_tone and 'happy' not in gpt_tone and 'sad' not in gpt_tone and 'surprise' not in gpt_tone and 'neutral' not in gpt_tone:
+        gpt_tone = ['angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
+
+    return gpt_tone
     #make the following test case insensitive
     #strip white space from tone
-    tone = tone.strip()
-    tone = tone.strip('.')
+    # tone = tone.strip()
+    # tone = tone.strip('.')
 
-    print(f'tone: {tone}')
-    #change it to be if any of the following are not in the string tone, then error
-    if 'angry' not in tone and 'disgust' not in tone and 'fear' not in tone and 'happy' not in tone and 'sad' not in tone and 'surprise' not in tone and 'neutral' not in tone and 'Angry' not in tone and 'Disgust' not in tone and 'Fear' not in tone and 'Happy' not in tone and 'Sad' not in tone and 'Surprise' not in tone and 'Neutral' not in tone:
-        raise ValueError("Invalid tone suggested by GPT-3")
+    # print(f'tone: {tone}')
+    # #change it to be if any of the following are not in the string tone, then error
     
-    return tone.lower()
+    # return tone.lower()
 
 def analyze_tone(prompt, audio_file):
-    tone = determine_tone(prompt)
+    emotion_mapping = {
+        "angry": ["Anger", "Annoyance", "Contempt", "Disapproval", "Disgust", "Frustration", "Irritation"],
+        "disgust": ["Disgust", "Contempt", "Revulsion"],
+        "fear": ["Anxiety", "Fear", "Horror", "Panic", "Shock", "Terror"],
+        "happy": ["Admiration", "Adoration", "Amusement", "Aesthetic Appreciation", "Contentment", "Ecstasy", "Enthusiasm", "Excitement", "Joy", "Love", "Pride", "Satisfaction", "Triumph"],
+        "sad": ["Disappointment", "Empathic Pain", "Guilt", "Nostalgia", "Regret", "Sadness", "Shame", "Sorrow"],
+        "surprise": ["Awe", "Surprise (negative)", "Surprise (positive)", "Amazement", "Astonishment"],
+        "neutral": ["Boredom", "Calmness", "Curiosity", "Interest", "Neutral", "Serenity", "Stillness"]
+    }
+    
+    tone_list = determine_tone(prompt)
     client = HumeBatchClient("kPRwB7YpdFaNqgrprMzHmAgiK0fAPAGcucdA3ZU53NvKyEUk")
     config = [ProsodyConfig()]
     files = [str(audio_file)]
@@ -224,16 +261,15 @@ def analyze_tone(prompt, audio_file):
         else:
             emotion_dict[emotion_name] = 1
 
-        print(max(special_dict, key=special_dict.get))
-    
-    # return emotion with highest count
-    if len(emotion_dict) == 0:
-        return "neutral"
-    
-    if max(emotion_dict, key=emotion_dict.get) == tone:
-        return 20
+    max_emotion = max(emotion_dict, key=emotion_dict.get)
+    keys_face = [key for key, value in emotion_mapping.items() if max_emotion in value]
+
+    if (keys_face == []):
+        get_index = tone_list.index("neutral")
     else:
-        return 0
+        get_index = tone_list.index(keys_face[0])
+
+    return max_emotion, (7 - get_index)*2
 
 # Function to determine the ideal volume levels for an improv delivery based on chat with GPT-3
 def determine_volume_fluctuation(prompt):
@@ -281,6 +317,7 @@ def determine_volume_fluctuation(prompt):
     return volume
 
 # Function to calculate volume fluctuation
+# Function to calculate volume fluctuation
 def calculate_volume_fluctuation(prompt, AUDIO_FILE_PATH):
     ideal_volume = determine_volume_fluctuation(prompt)
     ideal_volume = (float)(ideal_volume)
@@ -305,8 +342,11 @@ def filler_word_calculator(transcript):
     # make it so that the deep_gram_fillers are not case sensitive by adding all possibiilities to the set
     deep_gram_fillers = {'uh', 'um', 'mhmm', 'mm-mm', 'uh-uh', 'uh-huh', 'nuh-uh', 'Uh', 'Um', 'Mhmm', 'Mm-mm', 'Uh-uh', 'Uh-huh', 'Nuh-uh'}
     # also give me a percentage of the total words in the transcript that are fillers
-    transcript = transcript.replace(".", "")
+    transcript = transcript.replace(".", " ")
     words = transcript.split()
+    #strip whitespace around words
+    words = [word.strip() for word in words]
+    print(words)
     filler_count = 0
     for word in words: 
         if word in deep_gram_fillers: 
@@ -358,56 +398,106 @@ def get_script_relevance(transcript, prompt):
     print(f'Content Relevance: {completion.choices[0].message.content}')
     return (int)(completion.choices[0].message.content)
 
+def analyze_facial_expression(prompt, MP4_FILE_PATH):
+    tone_list = determine_tone(prompt)
 
-# def analyze_facial_expression():
-#     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-#     vidcap = cv2.VideoCapture("example2.mp4")
-#     fps_in = vidcap.get(cv2.CAP_PROP_FPS)
-#     fps_out = 3
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    vidcap = cv2.VideoCapture(MP4_FILE_PATH)
+    fps_in = vidcap.get(cv2.CAP_PROP_FPS)
+    fps_out = 1
 
-#     vidcap.set(cv2.CAP_PROP_FPS, 3)
-#     success, image = vidcap.read()
-#     total_count = 0
-#     gaze_count = 0
+    vidcap.set(cv2.CAP_PROP_FPS, 3)
+    success, image = vidcap.read()
+    total_count = 0
+    gaze_count = 0
 
-#     index_in = -1
-#     index_out = -1
-#     analyze_dict = {}
+    index_in = -1
+    index_out = -1
+    analyze_dict = {}
 
-#     while success:
-#         success = vidcap.grab()
-#         if not success: break
-#         index_in += 1
+    while success:
+        success = vidcap.grab()
+        if not success: break
+        index_in += 1
 
-#         out_due = int(index_in / fps_in * fps_out)
-#         if out_due > index_out:
-#             success, image = vidcap.retrieve()
-#             if not success: break
-#             index_out += 1
+        out_due = int(index_in / fps_in * fps_out)
+        if out_due > index_out:
+            success, image = vidcap.retrieve()
+            if not success: break
+            index_out += 1
 
-#             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#             face = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
-#             analyze = DeepFace.analyze(image, actions=['emotion'])[0]['emotion']
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            face = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5)
+            analyze = DeepFace.analyze(image, actions=['emotion'])[0]['emotion']
 
-#             max_expression = max(analyze, key=analyze.get)
+            max_expression = max(analyze, key=analyze.get)
 
-#             keys = list(analyze.keys())
-#             if (index_in == 0):
-#                 analyze_dict = analyze
-#                 analyze_dict = dict.fromkeys(analyze_dict, 0)
-#             else:
-#                 analyze_dict[max_expression] += 1
+            keys = list(analyze.keys())
+            if (index_in == 0):
+                analyze_dict = analyze
+                analyze_dict = dict.fromkeys(analyze_dict, 0)
+            else:
+                analyze_dict[max_expression] += 1
 
-#             total_count += 1
-#         # print(index_in)
+            total_count += 1
 
-#     print(analyze_dict)
-#     print(max(analyze_dict, key=analyze_dict.get))
+    max_emotion = max(analyze_dict, key=analyze_dict.get)
+    print(max_emotion)
+    get_index = tone_list.index(max_emotion)
 
+    return max_emotion, (7 - get_index)*2
+
+
+def get_eye_contact_percent(VIDEO_FILE):
+    gaze = GazeTracking()
+    vidcap = cv2.VideoCapture(VIDEO_FILE)
+    fps_in = vidcap.get(cv2.CAP_PROP_FPS)
+    fps_out = 3
+
+    vidcap.set(cv2.CAP_PROP_FPS, 3)
+    success, image = vidcap.read()
+    total_count = 0
+    gaze_count = 0
+    center_count = 0
+
+    index_in = -1
+    index_out = -1
+
+    looking_away = []
+
+    while success:
+        success = vidcap.grab()
+        if not success: break
+        index_in += 1
+
+        out_due = int(index_in / fps_in * fps_out)
+        if out_due > index_out:
+            # print(index_in)
+            success, image = vidcap.retrieve()
+            if not success: break
+            index_out += 1
+
+            gaze.refresh(image)
+            new_frame = gaze.annotated_frame()
+
+            text = ""
+
+            if gaze.is_right() or gaze.is_left():
+                looking_away.append(total_count)
+                gaze_count += 1
+            if gaze.is_center():
+                center_count += 1
+
+            total_count += 1
+
+    print(gaze_count / total_count)
+    threshold = 0.85
+    non_gaze_percent = 1 - (gaze_count / total_count)
+    return non_gaze_percent, abs(threshold - non_gaze_percent) * 100
 
 def main(file_name):
     # Get the prompt
-    score = 0
+    score = 100
     prompt = get_prompt()
 
     VIDEO_FILE_PATH = file_name + ".mp4"
@@ -418,17 +508,26 @@ def main(file_name):
 
     # Convert the video to mp3 shuold have been done already
 
+
     # Get the transcript
     response, transcript = asyncio.run(get_transcript(AUDIO_FILE_PATH))
     # print(f'response: {response}')
     # print(f'transcript: {transcript}')
+
+    # Analyze the eye contact from the video
+    gaze_contact_percent, eye_contact_score = get_eye_contact_percent(VIDEO_FILE_PATH)
+    score -= eye_contact_score
+
+    # Analyze facial emotions from the video
+    max_facial_expression, emotions_score = analyze_facial_expression(prompt, VIDEO_FILE_PATH)
+    score += emotions_score
 
     # Calculate pace and pause metrics
     avg_pause_duration, total_pause_time, pause_variation = calculate_metrics(response, prompt)
     score -= (avg_pause_duration*20 + total_pause_time/20 + pause_variation*10)
 
     # Analyze the tone of the speaker
-    tone_score = analyze_tone(prompt, AUDIO_FILE_PATH)
+    audio_tone, tone_score = analyze_tone(prompt, AUDIO_FILE_PATH)
     score += tone_score
 
     # Calculate volume fluctuation
@@ -448,9 +547,14 @@ def main(file_name):
     # Organize the metrics into a dictionary
     feedback = {
         "score": score,
+        "eye_contact_percentage": gaze_contact_percent,
+        "eye_percent_away_from_threshoold": eye_contact_score,
+        "max_facial_emotion": max_facial_expression,
+        "gpt-tone": determine_tone(prompt)[0],
         "avg_pause_duration": avg_pause_duration,
         "total_pause_time": total_pause_time,
         "pause_variation": pause_variation,
+        "audio_tone": audio_tone,
         "tone_score": tone_score,
         "volume_difference": volume_difference,
         "volume_fluctuation": volume_fluctuation,
@@ -461,6 +565,4 @@ def main(file_name):
 
     print(f'Feedback: {feedback}')
 
-
-
-main("karthik1")
+main("example2")

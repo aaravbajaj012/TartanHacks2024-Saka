@@ -27,7 +27,18 @@ system_prompt = " \
     Determine if the script's purpose and objectives align with those implied or stated in the prompt. This includes the intended outcome of the script (e.g., to persuade, inform, entertain) and whether it addresses the prompt's call to action or question. \
     Evaluate the script's structure, argumentation, and conclusion to ensure they collectively work towards achieving the goal set forth by the prompt, reflecting an understanding of the prompt's underlying intent. \
     \
-    You should be extremely harsh with grading, with almost no scripts getting above a 90 for their rating."
+    You should be extremely harsh with grading, with almost no scripts getting above a 90 for their rating. \
+    \
+    Here are few examples of grading scheme for the prompt: You are a financial analyst who has identified an emerging market with significant investment potential. Your goal is to convince your firm's investment committee to allocate resources to this market, presenting your analysis and risk management strategy. \
+    \
+    Example 1 Transcript: Hey everyone, so, um, I found this super cool market thingy, kind of a hidden gem, you know? It's like, in this place where not many people invest, but I think we should, like, totally go for it. I did some, uh, number stuff and it looks pretty good, I guess? There's some risks, sure, but we can, like, \
+        do something about them, maybe spread out the investments or something. I didn't dive super deep into the details, but, hey, fortune favors the bold, right? So, what do you say we just, you know, give it a shot and see what happens? Could be fun, right?. \
+    Example 1 Score: 15 \
+    \
+    Example 2 Transcript: Esteemed members of the investment committee, today I present an opportunity that stands at the frontier of innovation and growth. Our extensive analysis has identified an emerging market poised for significant returns. This market, characterized by its robust economic indicators and untapped potential, \ offers a unique blend of risk and reward. Weve conducted a thorough risk assessment, factoring in geopolitical, economic, and market-specific variables. Our strategy for risk management includes a phased investment approach, diversification across sectors, and continuous monitoring for agile adjustments. By capitalizing on this \
+    opportunity, we not only stand to gain substantial financial returns but also position our firm as a leader in recognizing and seizing global investment prospects. I urge us to move forward with a strategic allocation of resources, demonstrating our commitment to innovation, growth, and prudent risk management. Thank you for considering this transformative opportunity. \
+    Example 2 Score: 87 \
+    "
 
 user_prompt = f"The script is {script} and the prompt is {prompt}. Rate the content relevance of the script to the prompt from a scale of 1 to 100. Give a singular number and no explanation."
 

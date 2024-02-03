@@ -12,6 +12,7 @@ def get_eye_contact_percent(VIDEO_FILE):
     success, image = vidcap.read()
     total_count = 0
     gaze_count = 0
+    center_count = 0
 
     index_in = -1
     index_out = -1
@@ -36,13 +37,18 @@ def get_eye_contact_percent(VIDEO_FILE):
             text = ""
 
             if gaze.is_right() or gaze.is_left():
+                # cv2.imwrite(f"example{index_in}.jpg", image)
                 looking_away.append(total_count)
                 gaze_count += 1
+            if gaze.is_center():
+                # cv2.imwrite(f"example_center{index_in}.jpg", image)
+                center_count += 1
 
             total_count += 1
 
+    print(gaze_count, center_count, total_count)
     return gaze_count / total_count, looking_away
 
-eye_contact_percent, look_aways  = get_eye_contact_percent('example.mp4')
+eye_contact_percent, look_aways  = get_eye_contact_percent('example1.mp4')
 
 print(eye_contact_percent)

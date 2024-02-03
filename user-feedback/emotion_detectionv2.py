@@ -5,7 +5,7 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 
 vidcap = cv2.VideoCapture("example2.mp4")
 fps_in = vidcap.get(cv2.CAP_PROP_FPS)
-fps_out = 3
+fps_out = 1
 
 vidcap.set(cv2.CAP_PROP_FPS, 3)
 success, image = vidcap.read()
@@ -48,7 +48,7 @@ while success:
             analyze_dict[max_expression] += 1
 
         total_count += 1
-    print(index_in)
+    # print(index_in)
 
 # total = sum(list(analyze_dict.values()), 0.0)
 # new_dict = {k: v / total for k, v in analyze_dict.items()}
