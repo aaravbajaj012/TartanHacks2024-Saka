@@ -104,3 +104,45 @@
   margin: 0;
   text-align: center;
 }
+
+
+
+.circle-recording-icon {
+  position: absolute;
+  border-radius: 50%;
+  animation-duration: 3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.inner-circle-recording-icon {
+  width: 15px;
+  height: 15px;
+  animation-name: innerCircleRecordingIconAnimation;
+}
+
+.outer-circle-recording-icon {
+  width: 25px;
+  height: 25px;
+  animation-name: outerCircleRecordingIconAnimation;
+}
+
+@keyframes innerCircleRecordingIconAnimation {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes outerCircleRecordingIconAnimation {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}

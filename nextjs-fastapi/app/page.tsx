@@ -15,7 +15,7 @@ export default function Home() {
     if (auth.currentUser) {
       return auth.currentUser.getIdToken();
     } else {
-      router.push('/auth/sign-in');
+      router.push('/sign-in');
       throw new Error('User not signed in');
     }
   };

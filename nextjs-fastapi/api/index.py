@@ -1,14 +1,17 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Header, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, Header, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import datetime
 import uuid
 from utils.server.connection_manager import manager
-from utils.server.db import add_to_queue, run_match, db
+from utils.server.db import add_to_queue, remove_from_queue, create_match_entry, set_match_status, update_player_ready, check_both_ready, get_match_prompt, db
+from utils.server.match import create_prompt, get_prompt, analyze_replay
 import utils.server.firebase
 import json
 import requests
+import os
 from pydantic import BaseModel
+
 app = FastAPI()
 
 origins = ["*"]
@@ -33,6 +36,17 @@ async def database_ping():
         return {"message": "Pinged your deployment. You successfully connected to MongoDB!"}
     except Exception as e:
         return {"message": "Error connecting to MongoDB: " + str(e)}
+    
+@app.get('/api/test-get-prompt')
+async def test_get_prompt():
+    prompt = get_prompt()
+
+    # if prompt is not none return prompt with 200 status code
+    if prompt:
+        return prompt
+    else:
+        # else return 500 status code
+        raise HTTPException(status_code=500, detail="Error generating prompt")
 
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -40,9 +54,9 @@ async def websocket_endpoint(websocket: WebSocket):
         print("websocket connection")
         await websocket.accept()
         token = await websocket.receive_text()
-        print(token)
+        #print(token)
         decoded_token = utils.server.firebase.verify_id_token(token)
-        print(decoded_token)
+        #print(decoded_token)
 
         user_id = decoded_token['user_id']
     except Exception as e:
@@ -60,7 +74,6 @@ async def websocket_endpoint(websocket: WebSocket):
             events = data.split(";")
 
             for event in events:
-                print(event)
 
                 params = event.split(":")
 
@@ -75,47 +88,59 @@ async def websocket_endpoint(websocket: WebSocket):
                         count = await queue.count_documents({'status': 'waiting'})
 
                         if count > 0: # there is a waiting opponent
-                            first_user = await queue.find_one({'status': 'waiting'}, sort=[('timestamp', 1)])
+                            opponent = await queue.find_one({'status': 'waiting'}, sort=[('timestamp', 1)])
 
-                            if not await manager.check_connection(first_user['user_id']): # the other player is not connected
-                                await queue.delete_one({'user_id': first_user['user_id'], 'status': 'waiting'}) # remove the other player from the queue
+                            if not manager.check_connection(opponent['user_id']): # the other player is not connected
+                                await queue.delete_one({'user_id': opponent['user_id'], 'status': 'waiting'}) # delete the other player from the queue
                                 await add_to_queue(user_id) # add user back to the queue
                                 continue
                                 
                             # the user is matched
-                            await queue.update_one({'user_id': first_user['user_id']}, {'$set': {'status': 'matched'}})
+                            await remove_from_queue(opponent['user_id']) # remove the other player from the queue
 
                             # create a match between the two players
-                            matches = db['matches']
-                            match_id = uuid.uuid4()
-                            await matches.insert_one({ 'match_id': str(match_id), 'timestamp': datetime.datetime.now(), 'status': 'pending', 'players': [user_id, first_user['user_id']], 'result' : -1})
-                            
-                            users = db['users']
-                            player = await users.find_one({'user_id': user_id})
-                            opponent = await users.find_one({'user_id': first_user['user_id']})
-                            
-                            # put the player and opponent into a json object
-                            player_json = json.dumps({'name': player['name'], 'profile_pic': player['profile_pic'], 'elo': player['elo']})
-                            opponent_json = json.dumps({'name': opponent['name'], 'profile_pic': opponent['profile_pic'], 'elo': opponent['elo']})
+                            match_id, player_json_data, opponent_json_data = await create_match_entry(user_id, opponent['user_id'])
 
-                            player_reply_json = json.dumps({'player' : player_json, 'opponent': opponent_json})
-                            opponent_reply_json = json.dumps({'player' : opponent_json, 'opponent': player_json})
-
+                            if match_id is None:
+                                await manager.send_personal_message("error_creating_match", user_id)
+                                await manager.send_personal_message("error_creating_match", opponent['user_id'])
+                                continue
+                            
                             # send the match id to both players
-                            await manager.send_personal_message("match_found:" + player_reply_json, user_id)
-                            await manager.send_personal_message("match_found:" + opponent_reply_json, first_user['user_id'])
+                            await manager.send_personal_message("match_found:" + player_json_data, user_id)
+                            await manager.send_personal_message("match_found:" + opponent_json_data, opponent['user_id'])
 
-                            await run_match(match_id)
+                            await set_match_status(match_id, 'pending')
+                            await create_prompt(match_id, user_id, opponent['user_id'])
                         else: # no waiting opponent
                             await add_to_queue(user_id) # add the user to the queue
                     else:
                         await manager.send_personal_message("finding_match", user_id)
+                elif event_type == "player_ready":
+                    match_id = params[1] # do manual lookup if this is not working
+                    await update_player_ready(match_id, user_id)
+                    # check if both players are ready
+                    is_ready, player_1_id, player_2_id = await check_both_ready(match_id)
+                    if is_ready:
+                        prompt = await get_match_prompt(match_id)
+                        if prompt:
+                            await set_match_status(match_id, 'running')
+
+                            await manager.send_personal_message("prompt:" + prompt, player_1_id)
+                            await manager.send_personal_message("prompt:" + prompt, player_2_id)
+                        else:
+                            await set_match_status(match_id, 'failed')
+
+                            await manager.send_personal_message("match_failed", player_1_id)
+                            await manager.send_personal_message("match_failed", player_2_id)
+
+
                 else:
                     await websocket.send_text("invalid_event_type")
-    
     except Exception as e:
+        print(e)
         print("reached disconnect block")
-        print(user_id)
+        #print(user_id)
         manager.disconnect(user_id)
 
 
@@ -139,8 +164,8 @@ async def register_user(user: User, decoded_token: str = Depends(get_token_from_
 
     user_exists = await users.find_one({'user_id': user.user_id})
     if user_exists:
-        raise HTTPException(status_code=403, detail="User already exists")
-    
+        return {"message": "User already exists"}
+        
     user_id = user.user_id
     name = user.name
     profile_pic = user.profile_pic
@@ -167,3 +192,29 @@ async def get_user_profile(decoded_token: str = Depends(get_token_from_header)):
     user_json = json.dumps({'name': user['name'], 'profile_pic': user['profile_pic'], 'elo': user['elo']})
 
     return user_json
+
+
+@app.post('/api/upload-replay')
+async def upload_replay(file: UploadFile = File(...), decoded_token: str = Depends(get_token_from_header)):
+    UPLOAD_DIR = "./uploads"  # Specify the directory where you want to save the uploaded files
+
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+        
+    try:
+        filename = file.filename
+
+        file_location = f"{UPLOAD_DIR}/{filename}"
+        with open(file_location, "wb+") as file_object:
+            file_object.write(file.file.read())
+
+        # parse the filename to get the match id and user id, they are delimited by a dash and the extension is .mp4
+        sender_data = filename.split('_')
+        match_id = sender_data[0]
+        user_id = sender_data[1].split('.')[0]
+
+        analyze_replay(match_id, user_id, file_location)
+
+        return {"message": "Replay file successfully uploaded"}
+    except:
+        raise HTTPException(status_code=500, detail="Error analyzing replay file")

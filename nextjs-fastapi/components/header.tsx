@@ -8,7 +8,7 @@ export default function Header() {
     const router = useRouter();
 
     return (
-        <div className="w-full flex flex-row py-6 px-12">
+        <div className="w-full flex flex-row pt-6 px-12">
             <div className="grow"/>
             <div 
                 className="relative flex flex-row items-center justify-center"
