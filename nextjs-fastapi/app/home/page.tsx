@@ -490,6 +490,16 @@ export default function Home() {
                                 <ProgressBar value={45} color="blue" className="mt-3" />
                             </div>
                         </div>
+                        <div className="bg-white shadow-card px-10 py-8 rounded-lg flex flex-col mt-3 w-full">
+                            <div className="w-full flex flex-col justify-center items-center">
+                                <div className="w-full flex flex-row justify-center items-center mb-2 px-1">
+                                    <span className="text-xl font-bold text-slate-600">Overall Score</span>
+                                    <div className="grow" />
+                                    <span className="text-xl font-medium text-slate-600">15</span>
+                                </div>
+                                <ProgressBar value={45} color="blue" className="mt-3" />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
