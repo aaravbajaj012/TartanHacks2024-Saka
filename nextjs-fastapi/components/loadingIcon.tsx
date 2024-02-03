@@ -1,5 +1,5 @@
 
 
-export default function LoadingIcon({ width, borderColor }: { width: string, borderColor: string }) {
-    return <div className={`loader ${width} ${borderColor}`}/>;
+export default function LoadingIcon({ width }: { width: string}) {
+    return <div className={`loader ${width}`}/>;
 }

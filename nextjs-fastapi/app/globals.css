@@ -64,3 +64,43 @@
       opacity: 0;
   }
 }
+
+
+.time-roundel {
+  display: inline-block;
+  width: 100%;
+  max-width: 200px;
+  margin: 20px auto;
+  position: relative;
+}
+
+.circle-path {
+  stroke: orange;
+  fill: none;
+  stroke-width: 1;
+  stroke-linecap: round;
+/*   animation: initial-progress 1s ease-out forwards; */
+}
+
+@keyframes initial-progress {
+  0% {
+    stroke-dasharray: 0 60;
+  }
+}
+
+.time-display {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: orange;
+}
+.time--secs, .time--mins, .time--hrs, .countdown-time--secs, .countdown-time--mins, .countdown-time--hrs {
+  margin: 0;
+  text-align: center;
+  font-size: 3rem;
+}
+.time--text {
+  margin: 0;
+  text-align: center;
+}

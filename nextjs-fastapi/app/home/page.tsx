@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import useWebSocket from "@/utils/websocket";
 import LoadingIcon from "@/components/loadingIcon";
 import Header from "@/components/header";
+// const ReactRotatingText =  require('react-rotating-text');
+import { RotatingText } from 'react-simple-rotating-text';
 
 export default function Home() {
     const [loading, setLoading] = useState(true);
@@ -16,6 +18,11 @@ export default function Home() {
     const [matchLoading, setMatchLoading] = useState(false);
     const [isInitialScreenVisible, setIsInitialScreenVisible] = useState(false);
     const [isMatchPreviewVisible, setIsMatchPreviewVisible] = useState(false);
+    const [isDirectionsVisible, setIsDirectionsVisible] = useState(false);
+    const [isMatchScreenVisible, setIsMatchScreenVisible] = useState(false);
+
+    const [playerInfo, setPlayerInfo] = useState(null);
+    const [opponentInfo, setOpponentInfo] = useState(null);
 
     const getToken = async () => {
         if (auth.currentUser) {
@@ -47,9 +54,16 @@ export default function Home() {
     }
 
     const parseMessage = (message: string) => {
-        let message_prefix = message.split(":")[0];
+        const splitFirstColon = (s: string) => {
+            let i = s.indexOf(':');
+            return i === -1 ? [s] : [s.slice(0, i), s.slice(i + 1)];
+        }
 
-        let message_body = message.split(":").length > 1 ? message.split(":")[1] : null;
+        let message_split = splitFirstColon(message);
+
+        let message_prefix = message_split[0];
+
+        let message_body = message_split.length > 1 ? message_split[1] : null;
 
         switch (message_prefix) {
             case "match_found":
@@ -57,13 +71,27 @@ export default function Home() {
                     // parse message_body into JSON object from string
                     let message = JSON.parse(message_body);
 
-                    let player_info = message["player_info"];
-                    let opponent_info = message["oppponent_info"];
+                    setPlayerInfo(message["player_info"]);
+                    setOpponentInfo(message["oppponent_info"]);
 
                     setIsInitialScreenVisible(false);
+                    setIsMatchPreviewVisible(true);
+
+                    // setTimeout(() => {
+                    //     setIsMatchPreviewVisible(false);
+                    //     setIsDirectionsVisible(true);
+                    // }, 2000);
                 }
                 break;
+            case "start_match":
+                setIsDirectionsVisible(false);
+                setIsMatchScreenVisible(true);
+                break;
             case "finding_match":
+                break;
+            case "match_prepared":
+                setIsMatchPreviewVisible(false);
+                setIsDirectionsVisible(true);
                 break;
         }
     }
@@ -80,9 +108,14 @@ export default function Home() {
         else {
             ws!.disconnect();
         }
-        ws!.sendText("add_to_queue");
+        // ws!.sendText("add_to_queue");
+        parseMessage("match_found:{\"player_info\": {\"name\": \"Arjun Dixit\", \"profile_pic\": \"\", \"elo\": \"1190\"}, \"oppponent_info\": {\"name\": \"John Doe\", \"profile_pic\": \"\", \"elo\": \"1210\"}}");
         // confirmed = match_found: {match_id (UUID)}
         // pending = finding_match
+    }
+
+    const readyPlayer = () => {
+        ws!.sendText("player_ready");
     }
 
     const slideInDownStyle = {
@@ -96,7 +129,7 @@ export default function Home() {
     return (
         <div className="h-full w-full flex flex-col">
             <Header />
-            <div className="w-full grow flex flex-col justify-center items-center"
+            <div className={"w-full grow flex flex-col justify-center items-center "  + (isInitialScreenVisible ? "visible" : "hidden")}
                 style={isInitialScreenVisible ? slideInDownStyle : slideOutDownStyle}
             >
                 <span className="text-7xl font-bold text-slate-800">Improv Arena</span>
@@ -112,18 +145,57 @@ export default function Home() {
                     {
                         matchLoading && 
                         <div className="ml-5">
-                            <LoadingIcon borderColor={"border-slate-200"} width={"w-8"}/>
+                            <LoadingIcon width={"w-8"}/>
                         </div>
                     }
                 </button>
             </div>
-            <div className="w-full grow flex flex-col justify-center items-center"
+            <div className={"w-full grow flex flex-col justify-center items-center " + (isMatchPreviewVisible ? "visible" : "hidden")}
                 style={isMatchPreviewVisible ? slideInDownStyle : slideOutDownStyle}
             >
-                <span className="text-7xl font-bold text-slate-800">Match Found</span>
-                <div>
-                    
+                <span className="text-5xl font-bold text-slate-800">Match Found</span>
+                <div className="mt-24 flex flex-row justify-center items-center">
+                    <div className="bg-white shadow-card px-10 py-8 rounded-lg">
+                        <div className="flex flex-col items-center">
+                            <img src={(playerInfo && playerInfo['profile_pic'] ? playerInfo['profile_pic'] : null) ?? "/pfp-default.png"} className="w-32 h-32 rounded-full" alt="Player Profile Pic"/> 
+                            <span className="mt-4 text-xl font-bold text-slate-800">{playerInfo ? playerInfo['name'] : "Player"}</span>
+                            <span className="mt-2 text-lg font-medium text-slate-600">{playerInfo ? playerInfo['elo'] : "1200"}</span>
+                        </div>
+                    </div>
+
+                    <img src="/swords.png" className="mx-10 w-[128px]" alt="VS Icon"/>
+
+                    <div className="bg-white shadow-card px-10 py-8 rounded-lg">
+                        <div className="flex flex-col items-center">
+                            <img src={(opponentInfo && opponentInfo['profile_pic'] ? opponentInfo['profile_pic'] : null) ?? "/pfp-default.png"} className="w-32 h-32 rounded-full" alt="Player Profile Pic"/> 
+                            <span className="mt-4 text-xl font-bold text-slate-800">{opponentInfo ? opponentInfo['name'] : "Player"}</span>
+                            <span className="mt-2 text-lg font-medium text-slate-600">{opponentInfo ? opponentInfo['elo'] : "1200"}</span>
+                        </div>
+                    </div>
                 </div>
+
+                <div className="mt-12 flex flex-col justify-center items-center text-slate-500">
+                    <LoadingIcon width={"w-10"}/>
+                    <div style={{marginLeft: "-170px", marginTop: "10px"}}>
+                        <RotatingText className="text-lg font-bold text-slate-500 mt-4" texts={['Brainstorming ideas...', 'Generating scenario...', 'Setting up the stage...']}/>
+                    </div>
+                </div>
+            </div>
+
+            <div className={"w-full grow flex flex-col justify-center items-center " + (isDirectionsVisible ? "visible" : "hidden")}
+                style={isDirectionsVisible ? slideInDownStyle : slideOutDownStyle}
+            >
+                <span className="text-lg font-medium w-5/12 text-center text-slate-700">
+                    You will be given a scenario to improvise. You will have 30 seconds to prepare and 1 minute to speak. Let us know when you're ready!
+                </span>
+
+                <button className="mt-12 flex flex-row rounded-full text-md font-semibold px-6 py-4 bg-cyan-500 hover:bg-cyan-600 text-slate-100"
+                    onClick={() => {
+                        readyPlayer();
+                    }}
+                >
+                    I'm Ready
+                </button>
             </div>
         </div>
     )

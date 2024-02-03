@@ -35,7 +35,7 @@ export default function SignIn() {
                 onClick={() => {signInWithRedirect(auth, new GoogleAuthProvider())}}
                 className={'bg-white font-medium text-slate-800 py-4 px-6 rounded-lg flex-row flex'}
             >
-                {/* <Image src='/google-icon.png' alt='G' width="16" height="16" className='mr-4'/> */}
+                <Image src='/google-icon.png' alt='G' width="16" height="16" className='mr-4'/>
                 Sign in with Google
             </button>
         </div>

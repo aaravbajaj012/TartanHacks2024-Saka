@@ -13,6 +13,11 @@ module.exports = {
         'gradient-conic':
           'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
       },
+      extend: {
+        'shadow': {
+          'card': '0 0 50px 50px rgba(30, 30, 30, 0.5)'
+        }
+      }
     },
   },
   plugins: [],
